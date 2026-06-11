@@ -1,1 +1,28 @@
+name: Update CPS state series
+on:
+  schedule:
+    - cron: '0 14 8,12,16 * *'   # try a few times mid-month; new CPS lands ~1 week after jobs day
+  workflow_dispatch:
 
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Update series
+        env:
+          CENSUS_KEY: ${{ secrets.CENSUS_KEY }}
+        run: python update_history.py
+      - name: Commit if changed
+        run: |
+          git config user.name "cps-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/state_series.json
+          git diff --cached --quiet || git commit -m "Append new CPS month(s)"
+          git push
