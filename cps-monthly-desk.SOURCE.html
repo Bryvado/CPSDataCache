@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPS Monthly Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;900&family=Barlow:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<!-- NOTE: in the production build Chart.js is INLINED here (see reinline_chartjs.py). Keep this CDN tag in your redesigned output; the build script swaps it. -->
+<style>
+:root {
+  --bg:      #F4F2EE;
+  --surface: #FFFFFF;
+  --ink:     #1C1B1F;
+  --ink2:    #5A5860;
+  --ink3:    #9C9AA4;
+  --rule:    #DDD9D1;
+  --hot:     #C4311C;
+  --hot-dim: #F3D8D4;
+  --cool:    #1B6B3C;
+  --cool-dim:#CDE8D8;
+  --sig:     #1A5AA8;
+  --sig-dim: #CDE0F5;
+  --amb:     #9E6E00;
+  --amb-dim: #F2E5BE;
+  --nav-w:   164px;
+  --chrome:       #1C1B1F;
+  --chrome-hover: #2D2C31;
+  --row-hover: #EDEAE4;
+  --row-hl:    #F5EFD3;
+  --row-dd:    #EAE6F5;
+  --map-bg:    #EDEAE3;
+  --sans:    'Barlow', system-ui, sans-serif;
+  --cond:    'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --mono:    'DM Mono', 'Courier New', monospace;
+}
+html[data-theme="dark"]{
+  --bg:      #161618;
+  --surface: #1F1F23;
+  --ink:     #E9E7E3;
+  --ink2:    #A8A6AE;
+  --ink3:    #6F6D76;
+  --rule:    #34343A;
+  --hot:     #E2543C;
+  --hot-dim: #3A211C;
+  --cool:    #3FAE6E;
+  --cool-dim:#15301F;
+  --sig:     #5B96E0;
+  --sig-dim: #1C2C42;
+  --amb:     #D7A53C;
+  --amb-dim: #332A12;
+  --chrome:       #0E0E10;
+  --chrome-hover: #222226;
+  --row-hover: #26262B;
+  --row-hl:    #33301F;
+  --row-dd:    #2A2638;
+  --map-bg:    #26262B;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5}
+a{color:var(--sig);text-underline-offset:2px}
+code{font-family:var(--mono);background:rgba(0,0,0,.07);padding:1px 4px;border-radius:2px;font-size:.9em}
+
+/* ── sidebar ── */
+#sidebar{position:fixed;top:0;left:0;width:var(--nav-w);height:100vh;background:var(--chrome);display:flex;flex-direction:column;z-index:200;overflow:hidden}
+.nb{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.nb-title{font-family:var(--cond);font-weight:900;font-size:1.18rem;letter-spacing:.04em;text-transform:uppercase;color:#fff;line-height:1.1}
+.nb-title em{color:var(--hot);font-style:normal}
+.nb-sub{font-family:var(--mono);font-size:.57rem;color:rgba(255,255,255,.28);margin-top:5px;letter-spacing:.04em;line-height:1.6}
+.ni-wrap{flex:1;padding:14px 0;display:flex;flex-direction:column;gap:1px}
+.ni{display:flex;align-items:center;gap:9px;padding:8px 18px;font-family:var(--mono);font-size:.61rem;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.33);background:transparent;border:none;cursor:pointer;width:100%;text-align:left;transition:color .1s;user-select:none}
+.ni::before{content:'';width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.1);flex:none;transition:background .1s}
+.ni:hover{color:rgba(255,255,255,.72)}
+.ni:hover::before{background:rgba(255,255,255,.32)}
+.ni.active{color:#fff}
+.ni.active::before{background:var(--hot)}
+.nf{padding:13px 18px 18px;border-top:1px solid rgba(255,255,255,.08)}
+.nf-ref{font-family:var(--mono);font-size:.59rem;color:rgba(255,255,255,.28);line-height:1.7;margin-bottom:8px}
+#monthSel{width:100%;font-family:var(--mono);font-size:.62rem;background:rgba(255,255,255,.06);color:rgba(255,255,255,.68);border:1px solid rgba(255,255,255,.12);padding:6px 8px;border-radius:2px;cursor:pointer}
+#monthSel:focus-visible{outline:2px solid var(--hot);outline-offset:1px}
+#themeBtn{flex:none;font-size:.85rem;line-height:1;background:rgba(255,255,255,.06);color:rgba(255,255,255,.68);border:1px solid rgba(255,255,255,.12);padding:5px 8px;border-radius:2px;cursor:pointer}
+#themeBtn:hover{color:#fff}
+#themeBtn:focus-visible{outline:2px solid var(--hot);outline-offset:1px}
+
+/* ── shell ── */
+#shell{margin-left:var(--nav-w);display:flex;flex-direction:column;min-height:100vh}
+
+/* ── status bar ── */
+#status{background:var(--surface);border-bottom:1px solid var(--rule);padding:0 30px;height:36px;display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:.65rem;color:var(--ink2);position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--amb);flex:none;animation:blink 1.1s infinite}
+#status.done .sdot{background:var(--cool);animation:none}
+#status.err  .sdot{background:var(--hot); animation:none}
+@keyframes blink{50%{opacity:.18}}
+@media(prefers-reduced-motion:reduce){.sdot{animation:none}}
+.sbadge{font-family:var(--mono);font-size:.55rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:2px}
+.sbadge-cache{background:var(--cool-dim);color:var(--cool)}
+.sbadge-live{background:var(--hot-dim);color:var(--hot)}
+.ssp{flex:1}
+
+/* ── main ── */
+main{flex:1;padding:40px 30px 80px;max-width:1080px;width:100%}
+
+/* ── sections ── */
+section{margin-bottom:60px;scroll-margin-top:22px}
+.sh{border-top:2px solid var(--ink);padding-top:10px;margin-bottom:22px}
+.sh-n{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:3px}
+.sh-row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h2.sh-t{font-family:var(--cond);font-weight:900;font-size:1.45rem;letter-spacing:.02em;text-transform:uppercase;color:var(--ink);line-height:1.1}
+.sh-tag{font-family:var(--mono);font-size:.62rem;color:var(--ink3)}
+.note{font-family:var(--mono);font-size:.67rem;color:var(--ink2);line-height:1.75;margin:6px 0 16px}
+.note-amb{color:var(--amb)}
+
+/* ── headline ── */
+.hl-grid{display:grid;grid-template-columns:auto 1fr;align-items:start}
+.hl-lead{padding-right:36px;border-right:2px solid var(--rule)}
+.hl-kicker{font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
+.hl-big{font-family:var(--cond);font-weight:900;font-size:clamp(64px,8vw,100px);line-height:.9;color:var(--ink);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.hl-d{margin-top:12px;font-family:var(--mono);font-size:.73rem}
+.hl-p{margin-top:6px;font-family:var(--mono);font-size:.62rem;color:var(--ink3)}
+.hl-stats{padding-left:36px;display:grid;grid-template-columns:1fr 1fr}
+.hl-s{padding:13px 14px 13px 0;border-bottom:1px solid var(--rule)}
+.hl-s:nth-child(even){padding-left:14px;padding-right:0;border-left:1px solid var(--rule)}
+.hl-sl{font-family:var(--mono);font-size:.59rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px}
+.hl-sv{font-family:var(--cond);font-weight:700;font-size:1.9rem;line-height:1;font-variant-numeric:tabular-nums}
+.c-cool{color:var(--cool)}.c-hot{color:var(--hot)}
+.hl-sd{margin-top:5px;font-family:var(--mono);font-size:.66rem}
+
+/* deltas */
+.delta{font-family:var(--mono);font-size:.71rem}
+.delta.up{color:var(--hot)}.delta.down{color:var(--cool)}.delta.flat{color:var(--ink3)}
+
+/* ── charts ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.cbox{background:var(--surface);border:1px solid var(--rule);padding:18px;position:relative;height:340px;display:flex;flex-direction:column}
+.cbox.tall{height:400px}
+.cbox canvas{flex:1;min-height:0}
+.cbox-t{font-family:var(--mono);font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px;flex:none}
+
+/* ── comp strip ── */
+.cstrip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:16px}
+.cc{background:var(--surface);padding:18px 16px 14px}
+.cc-l{font-family:var(--mono);font-size:.59rem;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;line-height:1.5}
+.cc-v{font-family:var(--cond);font-weight:700;font-size:1.7rem;font-variant-numeric:tabular-nums;color:var(--ink);line-height:1}
+.cc-s{font-family:var(--mono);font-size:.59rem;color:var(--ink3);margin-top:4px}
+.cc-d{margin-top:5px}
+
+/* ── tile map ── */
+.map-metric-bar{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.mmbtns{display:flex;gap:3px;flex-wrap:wrap}
+.mmbtn{font-family:var(--mono);font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;background:var(--surface);color:var(--ink2);border:1px solid var(--rule);padding:5px 11px;cursor:pointer;border-radius:2px;transition:background .1s,color .1s}
+.mmbtn:hover{background:var(--bg);color:var(--ink)}
+.mmbtn.active{background:var(--chrome);color:#fff;border-color:var(--chrome)}
+.map-wrap{background:var(--surface);border:1px solid var(--rule);padding:16px 16px 14px;margin-bottom:14px}
+#tileMap{width:100%;height:auto;display:block}
+#tileMap g{cursor:pointer}
+#tileMap rect.tile{transition:fill .4s ease,opacity .1s}
+#tileMap text.tval{transition:opacity .2s}
+#tileMap g:hover rect.tile{opacity:.78}
+.map-cap{font-family:var(--mono);font-size:.59rem;color:var(--ink3);margin-top:10px;line-height:1.75}
+#mapTip{position:fixed;pointer-events:none;display:none;background:var(--chrome);color:rgba(255,255,255,.92);font-family:var(--mono);font-size:.69rem;padding:6px 10px;border-radius:2px;z-index:500;white-space:nowrap}
+
+/* ── table ── */
+.tbl-bar{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.tbtn{font-family:var(--mono);font-size:.64rem;letter-spacing:.04em;text-transform:uppercase;background:var(--chrome);color:rgba(255,255,255,.85);border:none;padding:7px 14px;cursor:pointer;border-radius:2px}
+.tbtn:hover{opacity:.75}.tbtn:disabled{opacity:.3;cursor:default}
+.tbtn:focus-visible{outline:2px solid var(--sig);outline-offset:1px}
+.tblwrap{background:var(--surface);border:1px solid var(--rule);overflow-x:auto;max-height:460px;overflow-y:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+thead th{position:sticky;top:0;background:var(--chrome);color:rgba(255,255,255,.75);font-family:var(--mono);font-size:.59rem;text-transform:uppercase;letter-spacing:.07em;font-weight:500;padding:9px 13px;text-align:right;cursor:pointer;user-select:none;white-space:nowrap;border-right:1px solid rgba(255,255,255,.05)}
+thead th:first-child{text-align:left}
+thead th:hover{background:var(--chrome-hover);color:#fff}
+.arr{color:var(--hot)}
+tbody td{padding:7px 13px;font-size:.82rem;border-bottom:1px solid var(--rule);text-align:right;font-family:var(--mono)}
+tbody td:first-child{text-align:left;font-family:var(--sans);font-weight:500;font-size:.84rem}
+tbody tr:hover{background:var(--row-hover);cursor:pointer}
+tbody tr.hl{background:var(--row-hl)}
+tbody tr.in-dd{background:var(--row-dd)}
+td.small-n{color:var(--amb)}
+td.spark-cell{padding-top:3px;padding-bottom:3px}
+.spark{color:var(--ink2);display:block;margin-left:auto}
+thead th[data-k="spark"]{cursor:default}
+thead th[data-k="spark"]:hover{background:var(--chrome);color:rgba(255,255,255,.75)}
+
+/* ── drilldown ── */
+.dd-ctrl{background:var(--surface);border:1px solid var(--rule);padding:18px 20px;margin-bottom:18px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end}
+.dd-cg{display:flex;flex-direction:column;gap:5px}
+.ctrl-l{font-family:var(--mono);font-size:.57rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3)}
+.dd-sel{font-family:var(--mono);font-size:.73rem;background:var(--bg);color:var(--ink);border:1px solid var(--rule);padding:7px 9px;cursor:pointer;border-radius:2px;min-width:148px}
+.dd-sel:focus-visible{outline:2px solid var(--sig);outline-offset:1px}
+#ddChips{display:flex;gap:5px;flex-wrap:wrap;min-height:28px;align-items:center;max-width:400px}
+.chip{font-family:var(--mono);font-size:.62rem;background:var(--chrome);color:rgba(255,255,255,.85);padding:4px 7px;border-radius:2px;cursor:pointer;border:none}
+.chip::after{content:' ×';opacity:.5}
+.chip:hover{background:var(--hot)}
+.dd-load{font-family:var(--cond);font-weight:700;font-size:.95rem;letter-spacing:.04em;text-transform:uppercase;background:var(--chrome);color:#fff;border:none;padding:9px 18px;cursor:pointer;border-radius:2px;align-self:flex-end}
+.dd-load:hover{opacity:.75}.dd-load:disabled{opacity:.3;cursor:default}
+#ddProg{font-family:var(--mono);font-size:.63rem;color:var(--ink3);align-self:flex-end;padding-bottom:6px}
+.dd-badge{font-family:var(--cond);font-weight:700;font-size:1.05rem;letter-spacing:.02em;text-transform:uppercase}
+
+/* ── error ── */
+#errbox{background:var(--hot-dim);border:1px solid var(--hot);border-left:4px solid var(--hot);padding:16px 20px;font-family:var(--mono);font-size:.78rem;line-height:1.75;margin-bottom:24px}
+
+/* ── footer ── */
+footer{font-family:var(--mono);font-size:.64rem;color:var(--ink3);padding:0 30px 60px;max-width:1080px;line-height:1.85}
+footer b{color:var(--ink2)}
+
+.hidden{display:none!important}
+
+/* ── responsive ── */
+@media(max-width:820px){
+  :root{--nav-w:0px}
+  #sidebar{position:sticky;top:0;width:100%;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;overflow:visible}
+  .nb{display:flex;align-items:center;gap:12px;padding:10px 14px 8px;border-bottom:none}
+  .nb-title{font-size:1rem}
+  .nb-title br{display:none}
+  .nb-sub{display:none}
+  .ni-wrap{order:3;width:100%;flex-direction:row;overflow-x:auto;padding:0 8px 9px;gap:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .ni-wrap::-webkit-scrollbar{display:none}
+  .ni{padding:6px 10px;white-space:nowrap;width:auto;flex:none}
+  .nf{margin-left:auto;padding:8px 14px;border-top:none;display:flex;align-items:center;gap:8px}
+  .nf-ref{display:none}
+  #monthSel{width:auto;max-width:150px}
+  #shell{margin-left:0}
+  #status{position:static}
+  main{padding:24px 16px 60px}
+  .hl-grid{grid-template-columns:1fr}
+  .hl-lead{padding-right:0;border-right:none;padding-bottom:22px;border-bottom:2px solid var(--rule)}
+  .hl-stats{padding-left:0;padding-top:20px}
+  .grid2{grid-template-columns:1fr}
+  .cstrip{grid-template-columns:1fr 1fr}
+  footer{padding:0 16px 40px}
+}
+@media(max-width:480px){
+  .hl-stats{grid-template-columns:1fr}
+  .cstrip{grid-template-columns:1fr}
+}
+
+/* ── print ── */
+@media print{
+  :root,html[data-theme="dark"]{--bg:#fff;--surface:#fff;--ink:#000;--ink2:#333;--ink3:#666;--rule:#bbb;--row-hover:transparent;--row-hl:#f2ecd2;--row-dd:#e8e4f2;--map-bg:#eee;--chrome:#000}
+  #sidebar,#status,#mapTip,.tbl-bar,.map-metric-bar,.dd-ctrl,#errbox{display:none!important}
+  #shell{margin-left:0}
+  body{background:#fff}
+  main{max-width:none;padding:0}
+  section{margin-bottom:28px;break-inside:avoid}
+  .cbox,.map-wrap,.tblwrap{border-color:#bbb;break-inside:avoid}
+  .cbox{height:300px}
+  .tblwrap{max-height:none;overflow:visible}
+  thead th{position:static;background:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #tileMap rect.tile,.hl-big,.delta,.cc-v{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  tbody tr:hover{background:transparent}
+  footer{padding:0;page-break-inside:avoid}
+  .sh{border-top-color:#000}
+  a{color:#000;text-decoration:none}
+}
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="nb">
+    <div class="nb-title">CPS<em>/</em>Monthly<br>Desk</div>
+    <div class="nb-sub">Census Bureau · Basic Monthly<br>Microdata · NSA Tabulations</div>
+  </div>
+  <div class="ni-wrap">
+    <button class="ni active" onclick="navTo('sec-headline')">Headline</button>
+    <button class="ni" onclick="navTo('sec-groups')">By Group</button>
+    <button class="ni" onclick="navTo('sec-duration')">Duration</button>
+    <button class="ni" onclick="navTo('sec-states')">States</button>
+    <button class="ni" onclick="navTo('sec-drilldown')">Drilldown</button>
+  </div>
+  <div class="nf">
+    <div class="nf-ref" id="refline">—</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <select id="monthSel" aria-label="Reference month" disabled=""></select>
+      <button id="themeBtn" aria-label="Toggle dark mode" title="Toggle dark mode">&#9681;</button>
+    </div>
+  </div>
+</nav>
+
+<div id="shell">
+
+  <div id="status">
+    <span class="sdot"></span>
+    <span id="statusTxt">Detecting most recent CPS Basic Monthly release…</span>
+    <span class="ssp"></span>
+    <span id="cacheBadge" class="hidden"></span>
+  </div>
+
+  <main>
+    <div id="errbox" class="hidden"></div>
+    <div id="app" class="hidden">
+
+      <!-- 01 HEADLINE -->
+      <section id="sec-headline">
+        <div class="sh">
+          <div class="sh-n">01 — National Overview</div>
+          <div class="sh-row"><h2 class="sh-t">Headline Indicators</h2></div>
+        </div>
+        <div id="headline"></div>
+      </section>
+
+      <!-- 02 BY GROUP -->
+      <section id="sec-groups">
+        <div class="sh">
+          <div class="sh-n">02 — Unemployment Rate by Group</div>
+          <div class="sh-row">
+            <h2 class="sh-t">Demographic Breakdown</h2>
+            <span class="sh-tag" id="demoTag"></span>
+          </div>
+        </div>
+        <div class="note">Civilian labor force 16+, not seasonally adjusted. Education panel restricted to 25+. Race/ethnicity: White and Black are non-Hispanic exclusive; Hispanic is any race.</div>
+        <div class="grid2">
+          <div class="cbox"><div class="cbox-t">Sex · Race / Ethnicity</div><canvas id="demoChart"></canvas></div>
+          <div class="cbox"><div class="cbox-t">Education (25+) · Age Group</div><canvas id="eduAgeChart"></canvas></div>
+        </div>
+      </section>
+
+      <!-- 03 DURATION -->
+      <section id="sec-duration">
+        <div class="sh">
+          <div class="sh-n">03 — Unemployment Duration · PRUNEDUR · Weeks Unemployed</div>
+          <div class="sh-row"><h2 class="sh-t">Duration + Composition</h2></div>
+        </div>
+        <div class="note" id="durNote"></div>
+        <div class="grid2">
+          <div class="cbox"><div class="cbox-t">Duration Distribution</div><canvas id="durChart"></canvas></div>
+          <div>
+            <div class="cstrip" id="compStrip"></div>
+            <div class="note">Composition stats use composited final weight (PWCMPWGT). Discouraged per PRDISC=1; multiple jobholders per PEMJOT among employed; full-time share per PRFTLF among labor force.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 04 STATES -->
+      <section id="sec-states">
+        <div class="sh">
+          <div class="sh-n">04 — State Tabulation · Monthly CPS Estimates Are Directional Only, Not LAUS</div>
+          <div class="sh-row"><h2 class="sh-t">All 51 Jurisdictions</h2></div>
+        </div>
+        <div class="note note-amb" style="margin-bottom:14px">Monthly CPS state estimates carry high sampling variance · n&thinsp;&lt;&thinsp;30 unweighted unemployed flagged below · not comparable to seasonally adjusted LAUS</div>
+
+        <!-- Map metric selector -->
+        <div class="map-metric-bar">
+          <span class="ctrl-l" style="font-family:var(--mono);font-size:.57rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3)">Color by</span>
+          <div class="mmbtns" id="mapMetricBtns">
+            <button class="mmbtn active" data-m="ur">Unemp rate</button>
+            <button class="mmbtn" data-m="lfpr">LFPR</button>
+            <button class="mmbtn" data-m="epop">EPOP</button>
+            <button class="mmbtn" data-m="d">&Delta;&thinsp;MoM</button>
+          </div>
+        </div>
+
+        <div class="map-wrap">
+          <svg id="tileMap" viewBox="0 0 800 432" aria-label="State tile cartogram colored by selected metric"></svg>
+          <div class="map-cap" id="mapCap"></div>
+        </div>
+
+        <div class="tbl-bar">
+          <button id="csvBtn" class="tbtn">Download CSV</button>
+          <span class="note" style="margin:0">Sort by column · Click a row or tile to add state to drilldown</span>
+        </div>
+        <div class="tblwrap"><table id="stTbl"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <!-- 05 DRILLDOWN -->
+      <section id="sec-drilldown">
+        <div class="sh">
+          <div class="sh-n">05 — State Drilldown · Monthly Series from Microdata</div>
+          <div class="sh-row">
+            <h2 class="sh-t">State Time Series</h2>
+            <span id="ddStateBadge" class="dd-badge sh-tag"></span>
+          </div>
+        </div>
+        <div class="dd-ctrl">
+          <div class="dd-cg" style="flex:1;min-width:220px">
+            <span class="ctrl-l">States (up to 8 — add from map, table, or here)</span>
+            <select id="ddAdd" class="dd-sel" aria-label="Add state"></select>
+            <div id="ddChips"></div>
+          </div>
+          <div class="dd-cg">
+            <span class="ctrl-l">Span</span>
+            <select id="ddSpan" class="dd-sel" aria-label="Series length">
+              <option value="12">12 months</option>
+              <option value="24" selected="">24 months</option>
+              <option value="36">36 months</option>
+              <option value="60">5 years</option>
+              <option value="120">10 years</option>
+              <option value="240">20 years</option>
+              <option value="all">All since 1994</option>
+            </select>
+          </div>
+          <div class="dd-cg">
+            <span class="ctrl-l">Metric</span>
+            <select id="ddMetric" class="dd-sel" aria-label="Metric">
+              <option value="ur" selected="">Unemployment rate</option>
+              <option value="lfpr">Labor force participation</option>
+              <option value="epop">Employment&ndash;population ratio</option>
+            </select>
+          </div>
+          <div class="dd-cg" style="margin-left:auto">
+            <span class="ctrl-l">&nbsp;</span>
+            <button id="ddLoad" class="dd-load">Load series</button>
+          </div>
+          <div class="dd-cg">
+            <span class="ctrl-l">&nbsp;</span>
+            <button id="ddCsv" class="tbtn" disabled="">Download CSV</button>
+          </div>
+          <span id="ddProg"></span>
+        </div>
+        <div class="cbox tall"><canvas id="ddChart"></canvas></div>
+        <div class="note" id="ddNote" style="margin-top:12px">Add states above, then load. Each point is an independent monthly sample (NSA) — thin raw line is noisy by construction; read the 3-month average. Longer spans require one API call per month.</div>
+      </section>
+
+    </div><!-- #app -->
+  </main>
+  <footer id="foot"></footer>
+</div><!-- #shell -->
+
+<div id="mapTip"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   CPS Monthly Desk — local single-file analysis app
+   Data: Census Bureau CPS Basic Monthly microdata API
+   ============================================================ */
+const KEY      = 'b31cc9efde65bcbea4cf1b0a46f70fd08cdb557c';
+/* Set this to your repo's raw URL once data/state_series.json is committed, e.g.
+   https://raw.githubusercontent.com/YOURUSER/cps-desk/main/data/state_series.json
+   Leave empty to skip the cache and fetch everything live. */
+const DATA_URL = 'https://raw.githubusercontent.com/Bryvado/CPSDataCache/main/data/state_series.json';
+const MONTHS      = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const VARS = ['PEMLR','PRTAGE','PESEX','PEEDUCA','PTDTRACE','PEHSPNON','PWCMPWGT','PRUNEDUR','PRFTLF','PRDISC','PEMJOT'];
+const FIPS = {
+  '01':'Alabama','02':'Alaska','04':'Arizona','05':'Arkansas','06':'California','08':'Colorado',
+  '09':'Connecticut','10':'Delaware','11':'District of Columbia','12':'Florida','13':'Georgia',
+  '15':'Hawaii','16':'Idaho','17':'Illinois','18':'Indiana','19':'Iowa','20':'Kansas',
+  '21':'Kentucky','22':'Louisiana','23':'Maine','24':'Maryland','25':'Massachusetts',
+  '26':'Michigan','27':'Minnesota','28':'Mississippi','29':'Missouri','30':'Montana',
+  '31':'Nebraska','32':'Nevada','33':'New Hampshire','34':'New Jersey','35':'New Mexico',
+  '36':'New York','37':'North Carolina','38':'North Dakota','39':'Ohio','40':'Oklahoma',
+  '41':'Oregon','42':'Pennsylvania','44':'Rhode Island','45':'South Carolina','46':'South Dakota',
+  '47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont','51':'Virginia','53':'Washington',
+  '54':'West Virginia','55':'Wisconsin','56':'Wyoming'
+};
+const ABBR = {
+  '01':'AL','02':'AK','04':'AZ','05':'AR','06':'CA','08':'CO','09':'CT','10':'DE','11':'DC',
+  '12':'FL','13':'GA','15':'HI','16':'ID','17':'IL','18':'IN','19':'IA','20':'KS','21':'KY',
+  '22':'LA','23':'ME','24':'MD','25':'MA','26':'MI','27':'MN','28':'MS','29':'MO','30':'MT',
+  '31':'NE','32':'NV','33':'NH','34':'NJ','35':'NM','36':'NY','37':'NC','38':'ND','39':'OH',
+  '40':'OK','41':'OR','42':'PA','44':'RI','45':'SC','46':'SD','47':'TN','48':'TX','49':'UT',
+  '50':'VT','51':'VA','53':'WA','54':'WV','55':'WI','56':'WY'
+};
+
+/*
+ * Tile cartogram grid: [col, row], 0-indexed, top-left origin.
+ * Grid is 13 cols (0-12) × 7 rows (0-6).
+ * AK at [0,0] (top-left corner, isolated).
+ * HI at [0,6] (bottom-left corner, isolated).
+ * Caption makes clear neither is adjacent to CONUS.
+ *
+ *      0   1   2   3   4   5   6   7   8   9   10  11  12
+ * r0: AK                                              ME
+ * r1:     .  MT  ND  MN  WI  MI  .   NY  VT  NH
+ * r2:     WA  ID  WY  SD  IA  IL  IN  OH  PA  NJ  MA
+ * r3:     OR  NV  UT  CO  NE  MO  KY  WV  VA  MD  CT
+ * r4:     CA  AZ  NM  KS  AR  TN  NC  SC  DC  DE  RI
+ * r5:         .   TX  OK  LA  MS  AL  GA
+ * r6: HI                          FL
+ */
+const TILE = {
+  '02':[0,0],  '23':[12,0],                                             // AK, ME
+  '30':[2,1],  '38':[3,1],  '27':[4,1],  '55':[5,1],  '26':[6,1],     // MT ND MN WI MI
+  '36':[8,1],  '50':[9,1],  '33':[10,1],                               // NY VT NH
+  '53':[1,2],  '16':[2,2],  '56':[3,2],  '46':[4,2],  '19':[5,2],     // WA ID WY SD IA
+  '17':[6,2],  '18':[7,2],  '39':[8,2],  '42':[9,2],  '34':[10,2], '25':[11,2], // IL IN OH PA NJ MA
+  '41':[1,3],  '32':[2,3],  '49':[3,3],  '08':[4,3],  '31':[5,3],     // OR NV UT CO NE
+  '29':[6,3],  '21':[7,3],  '54':[8,3],  '51':[9,3],  '24':[10,3], '09':[11,3], // MO KY WV VA MD CT
+  '06':[1,4],  '04':[2,4],  '35':[3,4],  '20':[4,4],  '05':[5,4],     // CA AZ NM KS AR
+  '47':[6,4],  '37':[7,4],  '45':[8,4],  '11':[9,4],  '10':[10,4], '44':[11,4], // TN NC SC DC DE RI
+  '48':[3,5],  '40':[4,5],  '22':[5,5],  '28':[6,5],  '01':[7,5],  '13':[8,5],  // TX OK LA MS AL GA
+  '15':[0,6],  '12':[7,6]                                              // HI, FL
+};
+
+const $ = id => document.getElementById(id);
+const charts = {};
+let latest  = null;
+let current = null;
+const cache = new Map();
+let nationalStats = null;  // { ur, lfpr, epop } for national avg
+let mapMetric     = 'ur';  // currently selected map metric
+let stRows        = [];    // last rendered state rows (for re-coloring)
+
+/* ---------- status helpers ---------- */
+function setStatus(txt, cls){ $('statusTxt').textContent = txt; $('status').className = cls || ''; }
+function fail(msg){
+  setStatus('Error', 'err');
+  const b = $('errbox'); b.classList.remove('hidden');
+  b.innerHTML = msg + '<br><br>If fetches are blocked when opening this file directly (file://), serve it instead: <code>python3 -m http.server</code> in the file\u2019s folder, then open <code>http://localhost:8000/cps-monthly-desk.html</code>.';
+}
+
+/* ---------- release detection ---------- */
+async function monthExists(y, m){
+  const url = `https://api.census.gov/data/${y}/cps/basic/${MONTHS[m]}?get=HRMONTH&for=state:11&key=${KEY}`;
+  try{ const r = await fetch(url); return r.ok; }catch(e){ return null; }
+}
+async function detectLatest(){
+  const now = new Date();
+  let y = now.getFullYear(), m = now.getMonth();
+  for(let i=0;i<18;i++){
+    setStatus(`Probing ${MONTH_NAMES[m]} ${y}\u2026`);
+    const ok = await monthExists(y, m);
+    if(ok === null){ fail('Could not reach api.census.gov \u2014 check your connection.'); return null; }
+    if(ok) return {y, m};
+    m--; if(m<0){ m=11; y--; }
+  }
+  fail('No CPS basic monthly dataset found in the last 18 months.');
+  return null;
+}
+function prevMonth({y,m}){ return m===0 ? {y:y-1,m:11} : {y,m:m-1}; }
+function keyOf(p){ return `${p.y}-${p.m}`; }
+function labelOf(p){ return `${MONTH_NAMES[p.m]} ${p.y}`; }
+
+/* ---------- data pull ---------- */
+async function fetchMonth(p, tag){
+  const k = keyOf(p);
+  if(cache.has(k)) return cache.get(k);
+  const url = `https://api.census.gov/data/${p.y}/cps/basic/${MONTHS[p.m]}?get=${VARS.join(',')}&for=state:*&key=${KEY}`;
+  setStatus(`Downloading ${labelOf(p)} national sample (${tag})\u2026 \u22488\u00a0MB, please wait`);
+  const r = await fetch(url);
+  if(!r.ok) throw new Error(`API ${r.status} for ${labelOf(p)}`);
+  const raw = await r.json();
+  const h = raw[0], ix = {};
+  h.forEach((c,i)=>ix[c]=i);
+  const recs = [];
+  for(let i=1;i<raw.length;i++){
+    const row = raw[i];
+    const w = parseFloat(row[ix.PWCMPWGT]);
+    const age = parseInt(row[ix.PRTAGE],10);
+    if(!(w>0) || age<16) continue;
+    recs.push({
+      mlr:+row[ix.PEMLR], age, sex:+row[ix.PESEX], edu:+row[ix.PEEDUCA],
+      race:+row[ix.PTDTRACE], hisp:+row[ix.PEHSPNON], w,
+      dur:+row[ix.PRUNEDUR], ftlf:+row[ix.PRFTLF], disc:+row[ix.PRDISC],
+      mjot:+row[ix.PEMJOT], st:String(row[ix.state]).padStart(2,'0')
+    });
+  }
+  cache.set(k, recs);
+  return recs;
+}
+
+/* ---------- weighted stats ---------- */
+const isEmp   = r => r.mlr===1 || r.mlr===2;
+const isUnemp = r => r.mlr===3 || r.mlr===4;
+function rates(recs, filter){
+  let emp=0, unemp=0, pop=0, nU=0;
+  for(const r of recs){
+    if(filter && !filter(r)) continue;
+    pop += r.w;
+    if(isEmp(r)) emp += r.w;
+    else if(isUnemp(r)){ unemp += r.w; nU++; }
+  }
+  const lf = emp+unemp;
+  return { emp, unemp, lf, pop, nU,
+    ur:   lf>0  ? 100*unemp/lf  : NaN,
+    lfpr: pop>0 ? 100*lf/pop    : NaN,
+    epop: pop>0 ? 100*emp/pop   : NaN };
+}
+function wMedian(pairs){
+  if(!pairs.length) return NaN;
+  pairs.sort((a,b)=>a[0]-b[0]);
+  const tot = pairs.reduce((s,p)=>s+p[1],0);
+  let c=0;
+  for(const [v,w] of pairs){ c+=w; if(c>=tot/2) return v; }
+  return pairs[pairs.length-1][0];
+}
+
+/* ---------- formatting ---------- */
+const fmtPct = v => isFinite(v) ? v.toFixed(1)+'%' : '\u2014';
+const fmtM   = v => (v/1e6).toFixed(1)+'M';
+function deltaSpan(d, unit, invert){
+  if(!isFinite(d) || Math.abs(d) < (unit==='pp' ? 0.005 : 5000))
+    return `<span class="delta flat">\u2014 flat vs prior month</span>`;
+  const up  = d > 0;
+  const bad = invert ? !up : up;
+  const cls = bad ? 'up' : 'down';
+  const txt = unit==='pp'
+    ? `${up?'+':'\u2212'}${Math.abs(d).toFixed(1)}\u00a0pp`
+    : `${up?'+':'\u2212'}${(Math.abs(d)/1e6).toFixed(2)}M`;
+  return `<span class="delta ${cls}">${up?'\u25b2':'\u25bc'}\u00a0${txt} vs prior month</span>`;
+}
+
+/* ---------- demographic groups ---------- */
+const GROUPS = [
+  ['Men',        r=>r.sex===1],
+  ['Women',      r=>r.sex===2],
+  ['White (NH)', r=>r.race===1 && r.hisp===2],
+  ['Black (NH)', r=>r.race===2 && r.hisp===2],
+  ['Asian (NH)', r=>r.race===4 && r.hisp===2],
+  ['Hispanic',   r=>r.hisp===1],
+];
+const EDU_AGE = [
+  ['< HS diploma (25+)',      r=>r.age>=25 && r.edu>0 && r.edu<39],
+  ['HS grad (25+)',           r=>r.age>=25 && r.edu===39],
+  ['Some college/AA (25+)',   r=>r.age>=25 && (r.edu===40||r.edu===41||r.edu===42)],
+  ['Bachelor\u2019s+ (25+)', r=>r.age>=25 && r.edu>=43],
+  ['Age 16\u201324',          r=>r.age<=24],
+  ['Age 25\u201354',          r=>r.age>=25 && r.age<=54],
+  ['Age 55+',                 r=>r.age>=55],
+];
+const DUR_BINS = [
+  ['< 5 wks',         d=>d>=0  && d<5],
+  ['5\u201314',       d=>d>=5  && d<15],
+  ['15\u201326',      d=>d>=15 && d<27],
+  ['27+ (long-term)', d=>d>=27],
+];
+
+/* ---------- theme ---------- */
+function isDark(){ return document.documentElement.dataset.theme === 'dark'; }
+function pal(){ return isDark()
+  ? { grid:'#2E2E33', dim:'#4A4A50', ink:'#E9E7E3', text:'#A8A6AE' }
+  : { grid:'#E8E4DC', dim:'#DAD6CF', ink:'#1C1B1F', text:'#5A5860' }; }
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  Chart.defaults.color = pal().text;
+  if(current) run(current);                       // cached — instant rebuild of charts/map/table
+  if(ddStates.length) loadDrilldown().catch(()=>{});
+}
+document.documentElement.dataset.theme =
+  (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+
+/* ---------- chart defaults ---------- */
+Chart.defaults.font.family = "'DM Mono','Courier New',monospace";
+Chart.defaults.font.size   = 11;
+Chart.defaults.color       = pal().text;
+
+function barChart(id, labels, cur, prior, curLbl, priorLbl, horizontal){
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart($(id), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:curLbl,   data:cur,   backgroundColor:'#C4311C', borderWidth:0, barPercentage:.72 },
+      { label:priorLbl, data:prior, backgroundColor:pal().dim, borderWidth:0, barPercentage:.72 },
+    ]},
+    options:{
+      indexAxis: horizontal ? 'y' : 'x',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'bottom', labels:{ boxWidth:9, boxHeight:9, padding:14 } },
+        tooltip:{ callbacks:{ label:c=>` ${c.dataset.label}: ${c.parsed[horizontal?'x':'y'].toFixed(1)}%` } }
+      },
+      scales:{
+        [horizontal?'x':'y']:{ ticks:{ callback:v=>v+'%', font:{size:10} }, grid:{ color:pal().grid } },
+        [horizontal?'y':'x']:{ grid:{ display:false }, ticks:{ font:{size:10} } }
+      }
+    }
+  });
+}
+
+function durChart(labels, curShares, priorShares, curLbl, priorLbl){
+  if(charts.durChart) charts.durChart.destroy();
+  charts.durChart = new Chart($('durChart'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:curLbl,   data:curShares,   backgroundColor:'#1A5AA8', borderWidth:0, barPercentage:.72 },
+      { label:priorLbl, data:priorShares, backgroundColor:pal().dim, borderWidth:0, barPercentage:.72 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'bottom', labels:{ boxWidth:9, boxHeight:9, padding:14 } },
+        tooltip:{ callbacks:{ label:c=>` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}% of unemployed` } }
+      },
+      scales:{
+        y:{ ticks:{ callback:v=>v+'%', font:{size:10} }, grid:{ color:pal().grid },
+            title:{ display:true, text:'share of unemployed', font:{size:10} } },
+        x:{ grid:{ display:false }, ticks:{ font:{size:10} } }
+      }
+    }
+  });
+}
+
+/* ---------- tile cartogram ---------- */
+function tileColor(row, metric, natl){
+  /* For delta metric: center on 0; for rate metrics: center on national avg.
+     UR: higher = worse. LFPR/EPOP: higher = better. Delta: positive = worse. */
+  if(metric === 'd'){
+    const d = row.d;
+    if(!isFinite(d)) return '#C0BDB7';
+    if(d <= -.5) return '#1B6B3C';
+    if(d <= -.2) return '#68BA90';
+    if(d <=  .2) return '#ADADAD';
+    if(d <=  .5) return '#E89468';
+    return '#C4311C';
+  }
+  const val = row[metric];
+  if(!isFinite(val) || !natl) return '#C0BDB7';
+  const ref  = natl[metric];
+  const diff = val - ref;
+  /* For UR higher=worse, so positive diff = bad. For LFPR/EPOP higher=better, invert. */
+  const bad = (metric === 'ur') ? diff : -diff;
+  if(bad <= -2)  return '#1B6B3C';
+  if(bad <= -1)  return '#3DA068';
+  if(bad <= -.3) return '#84C49E';
+  if(bad <=  .3) return '#ADADAD';
+  if(bad <=  1)  return '#E89468';
+  if(bad <=  2)  return '#D44C2D';
+  return '#B71D0A';
+}
+
+function tileVal(row, metric){
+  if(metric === 'd'){
+    if(!isFinite(row.d)) return '\u2014';
+    return (row.d > 0 ? '+' : '') + row.d.toFixed(1);
+  }
+  const v = row[metric];
+  return isFinite(v) ? v.toFixed(1)+'%' : '\u2014';
+}
+
+function renderTileMap(rows, natl, metric){
+  const svg = $('tileMap');
+  if(svg.querySelector('g[data-fips]')){ updateTileMap(rows, natl, metric); return; }
+  buildTileMap(rows, natl, metric);
+}
+
+function updateTileMap(rows, natl, metric){
+  const svg = $('tileMap');
+  const byFips = new Map(rows.map(r=>[r.fips, r]));
+  svg.querySelectorAll('g[data-fips]').forEach(g=>{
+    const fips = g.dataset.fips;
+    const sr = byFips.get(fips);
+    const name = FIPS[fips] || fips;
+    const color = sr ? tileColor(sr, metric, natl) : '#C0BDB7';
+    const valTx = sr ? tileVal(sr, metric) : '\u2014';
+    const rect = g.querySelector('rect.tile');
+    rect.setAttribute('fill', color);                 // CSS transitions the fill
+    rect.querySelector('title').textContent = `${name}: ${valTx}`;
+    const tv = g.querySelector('text.tval');
+    tv.style.opacity = 0;                             // brief value cross-fade
+    setTimeout(()=>{ tv.textContent = valTx; tv.style.opacity = 1; }, 180);
+    g.dataset.tip = `${name} \u00b7 ${valTx}`;
+  });
+  drawMapLegend(svg, metric);
+  writeMapCaption(metric);
+}
+
+function drawMapLegend(svg, metric){
+  svg.querySelectorAll('.lgd').forEach(el=>el.remove());
+  const ns='http://www.w3.org/2000/svg', S=52, G=4, P=S+G, OX=20, OY=10;
+  const isD = metric === 'd';
+  const legend = isD
+    ? [['#1B6B3C','\u2265\u20130.5pp'],['#84C49E','\u223c0'],['#ADADAD','flat'],['#E89468','\u223c+0.5pp'],['#B71D0A','\u2265+0.5pp']]
+    : [['#1B6B3C','\u22652pp below'],['#84C49E','\u223c1pp below'],['#ADADAD','near avg'],['#E89468','\u223c1pp above'],['#B71D0A','\u22652pp above']];
+  const ly = OY + 7 * P - 2;
+  legend.forEach(([color, label], i) => {
+    const lx = OX + 2*P + i * 148;
+    const r = document.createElementNS(ns,'rect');
+    r.setAttribute('x',lx); r.setAttribute('y',ly);
+    r.setAttribute('width','9'); r.setAttribute('height','9');
+    r.setAttribute('fill',color); r.setAttribute('class','lgd'); svg.appendChild(r);
+    const t = document.createElementNS(ns,'text');
+    t.textContent = label;
+    t.setAttribute('x',lx+12); t.setAttribute('y',ly+8.5);
+    t.setAttribute('font-family',"'DM Mono',monospace");
+    t.setAttribute('font-size','7.5'); t.setAttribute('fill','var(--ink3)');
+    t.setAttribute('pointer-events','none'); t.setAttribute('class','lgd');
+    svg.appendChild(t);
+  });
+}
+
+function writeMapCaption(metric){
+  const metricLabel = {ur:'unemployment rate',lfpr:'labor force participation rate',epop:'employment-population ratio',d:'month-over-month UR change'}[metric] || metric;
+  $('mapCap').innerHTML = `Tile cartogram colored by <strong>${metricLabel}</strong>. ` +
+    'Each tile is one state/jurisdiction at equal visual weight. ' +
+    'Alaska (top-left, dashed) is in the northwest Pacific; Hawaii (bottom-left, dashed) is in the central Pacific — ' +
+    'neither is geographically adjacent to the continental US. Click any tile to add the state to the drilldown.';
+}
+
+function buildTileMap(rows, natl, metric){
+  const svg = $('tileMap');
+  const ns  = 'http://www.w3.org/2000/svg';
+  const S   = 52;   // tile size px
+  const G   = 4;    // gap px
+  const P   = S + G;
+  const OX  = 20;   // left offset
+  const OY  = 10;   // top offset
+
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+
+  /* background */
+  const bg = document.createElementNS(ns,'rect');
+  bg.setAttribute('width','100%'); bg.setAttribute('height','100%');
+  bg.setAttribute('fill','var(--map-bg)'); svg.appendChild(bg);
+
+  const byFips = new Map(rows.map(r=>[r.fips, r]));
+  const tip    = $('mapTip');
+
+  for(const [fips, [col, row]] of Object.entries(TILE)){
+    const x  = OX + col * P;
+    const y  = OY + row * P;
+    const sr = byFips.get(fips);
+    const abbr  = ABBR[fips] || fips;
+    const name  = FIPS[fips] || fips;
+    const color = sr ? tileColor(sr, metric, natl) : '#C0BDB7';
+    const valTx = sr ? tileVal(sr, metric)         : '\u2014';
+
+    /* Special treatment for AK (isolated NW) and HI (isolated Pacific) */
+    const isIsland = fips === '02' || fips === '15';
+
+    const g = document.createElementNS(ns,'g');
+    g.setAttribute('data-fips', fips);
+
+    const rect = document.createElementNS(ns,'rect');
+    rect.setAttribute('class','tile');
+    rect.setAttribute('x', x); rect.setAttribute('y', y);
+    rect.setAttribute('width', S); rect.setAttribute('height', S);
+    rect.setAttribute('fill', color); rect.setAttribute('rx','2');
+    if(isIsland){
+      rect.setAttribute('stroke','rgba(255,255,255,0.6)');
+      rect.setAttribute('stroke-width','1');
+      rect.setAttribute('stroke-dasharray','3 2');
+    }
+    const title = document.createElementNS(ns,'title');
+    title.textContent = `${name}: ${valTx}`;
+    rect.appendChild(title);
+    g.appendChild(rect);
+
+    /* abbreviation */
+    const ta = document.createElementNS(ns,'text');
+    ta.setAttribute('x', x+S/2); ta.setAttribute('y', y+S/2-4);
+    ta.setAttribute('text-anchor','middle');
+    ta.setAttribute('font-family',"'Barlow Condensed','Arial Narrow',sans-serif");
+    ta.setAttribute('font-weight','700'); ta.setAttribute('font-size','13');
+    ta.setAttribute('fill','rgba(255,255,255,0.92)');
+    ta.setAttribute('pointer-events','none');
+    ta.textContent = abbr;
+    g.appendChild(ta);
+
+    /* value */
+    const tv = document.createElementNS(ns,'text');
+    tv.setAttribute('class','tval');
+    tv.setAttribute('x', x+S/2); tv.setAttribute('y', y+S/2+10);
+    tv.setAttribute('text-anchor','middle');
+    tv.setAttribute('font-family',"'DM Mono','Courier New',monospace");
+    tv.setAttribute('font-size','8.5');
+    tv.setAttribute('fill','rgba(255,255,255,0.75)');
+    tv.setAttribute('pointer-events','none');
+    tv.textContent = valTx;
+    g.appendChild(tv);
+
+    /* hover tooltip — reads dataset so metric updates propagate */
+    g.dataset.tip = `${name} \u00b7 ${valTx}`;
+    g.addEventListener('mousemove', e => {
+      tip.textContent = g.dataset.tip;
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX+14)+'px';
+      tip.style.top  = (e.clientY-10)+'px';
+    });
+    g.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+
+    /* click: add to drilldown */
+    g.addEventListener('click', () => {
+      if(!ddStates.includes(fips) && ddStates.length < 8){
+        ddStates.push(fips);
+        renderChips();
+        updateDdBadge();
+        markTableRows();
+      }
+      navTo('sec-drilldown');
+    });
+
+    svg.appendChild(g);
+  }
+
+  /* AK / HI labels (honest geographic context) */
+  function addNote(txt, x, y){
+    const t = document.createElementNS(ns,'text');
+    t.textContent = txt;
+    t.setAttribute('x',x); t.setAttribute('y',y);
+    t.setAttribute('font-family',"'DM Mono',monospace");
+    t.setAttribute('font-size','7.5');
+    t.setAttribute('fill','var(--ink3)');
+    t.setAttribute('pointer-events','none');
+    svg.appendChild(t);
+  }
+  addNote('Alaska \u2014 NW Pacific, not adjacent to CONUS', OX + 0*P + S + 6, OY + 0*P + S/2 + 3);
+  addNote('Hawaii \u2014 central Pacific, \u22482,400 mi from CA', OX + 0*P + S + 6, OY + 6*P + S/2 + 3);
+
+  drawMapLegend(svg, metric);
+  writeMapCaption(metric);
+}
+
+/* metric toggle wiring */
+document.querySelectorAll('.mmbtn').forEach(btn => {
+  btn.onclick = () => {
+    mapMetric = btn.dataset.m;
+    document.querySelectorAll('.mmbtn').forEach(b => b.classList.toggle('active', b === btn));
+    if(stRows.length) renderTileMap(stRows, nationalStats, mapMetric);
+  };
+});
+
+/* ---------- navigation ---------- */
+function navTo(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const mobile = window.innerWidth <= 820;
+  const off = mobile ? document.getElementById('sidebar').offsetHeight + 10 : 20;
+  const top = el.getBoundingClientRect().top + window.scrollY - off;
+  window.scrollTo({ top, behavior:'smooth' });
+}
+const NAV_IDS = ['sec-headline','sec-groups','sec-duration','sec-states','sec-drilldown'];
+function updateNav(){
+  const btns = document.querySelectorAll('.ni');
+  let active = 0;
+  NAV_IDS.forEach((id,i)=>{ const el=document.getElementById(id); if(el && el.getBoundingClientRect().top<=72) active=i; });
+  btns.forEach((b,i)=>b.classList.toggle('active', i===active));
+}
+window.addEventListener('scroll', updateNav, {passive:true});
+
+/* ---------- state table ---------- */
+let sortCol = 'ur', sortDir = -1;
+const ST_COLS = [
+  ['name','State'],['ur','UR %'],['spark','12-mo UR'],['d','\u0394 pp MoM'],['lf','Labor force'],
+  ['emp','Employed'],['lfpr','LFPR %'],['nU','Unemp n (unwtd)']
+];
+/* sparkline: last 12 months of UR from tsCache (repo cache), oldest→newest */
+function sparkSeries(fips){
+  const vals=[]; let p={...(current||latest)};
+  for(let i=0;i<12;i++){ const c=tsCache.get(`${fips}|${keyOf(p)}`); vals.unshift(c?c.ur:null); p=prevMonth(p); }
+  return vals.some(v=>v!=null) ? vals : null;
+}
+function sparkSVG(vals){
+  const W=72,H=20,pad=2;
+  const have=vals.filter(v=>v!=null);
+  const min=Math.min(...have), max=Math.max(...have), rng=(max-min)||1;
+  const pts=[]; let lastXY=null;
+  vals.forEach((v,i)=>{
+    if(v==null) return;
+    const x=pad+(W-2*pad)*i/(vals.length-1);
+    const y=H-pad-(H-2*pad)*(v-min)/rng;
+    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`); lastXY=[x,y];
+  });
+  return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">`+
+    `<polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="1.3"/>`+
+    (lastXY?`<circle cx="${lastXY[0].toFixed(1)}" cy="${lastXY[1].toFixed(1)}" r="1.8" fill="var(--hot)"/>`:'')+
+  `</svg>`;
+}
+function markTableRows(){
+  $('stTbl').querySelectorAll('tbody tr').forEach(tr=>{
+    tr.classList.toggle('in-dd', ddStates.includes(tr.dataset.fips));
+  });
+}
+function renderTable(){
+  const thead = $('stTbl').querySelector('thead');
+  thead.innerHTML = '<tr>' + ST_COLS.map(([k,l]) =>
+    `<th data-k="${k}">${l}${k===sortCol?` <span class="arr">${sortDir<0?'\u25be':'\u25b4'}</span>`:''}</th>`).join('') + '</tr>';
+  thead.querySelectorAll('th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k;
+    if(k==='spark') return;
+    if(k===sortCol) sortDir*=-1; else { sortCol=k; sortDir=k==='name'?1:-1; }
+    renderTable();
+  });
+  const rows=[...stRows].sort((a,b)=>{
+    const va=a[sortCol],vb=b[sortCol];
+    return (typeof va==='string'?va.localeCompare(vb):(va-vb))*sortDir;
+  });
+  $('stTbl').querySelector('tbody').innerHTML = rows.map(r=>{
+    const sp=sparkSeries(r.fips);
+    return `
+    <tr data-fips="${r.fips}" style="cursor:pointer"${r.fips==='48'?' class="hl"':''}>
+      <td>${r.name}</td>
+      <td>${r.ur.toFixed(1)}%</td>
+      <td class="spark-cell">${sp?sparkSVG(sp):'<span style="color:var(--ink3)">\u2014</span>'}</td>
+      <td>${isFinite(r.d)?(r.d>0?'+':'')+r.d.toFixed(1):'\u2014'}</td>
+      <td>${fmtM(r.lf)}</td>
+      <td>${fmtM(r.emp)}</td>
+      <td>${r.lfpr.toFixed(1)}%</td>
+      <td${r.nU<30?' class="small-n"':''}>${r.nU}</td>
+    </tr>`;}).join('');
+  $('stTbl').querySelectorAll('tbody tr').forEach(tr=>tr.onclick=()=>{
+    const fips = tr.dataset.fips;
+    if(!ddStates.includes(fips) && ddStates.length<8){
+      ddStates.push(fips);
+      renderChips();
+      updateDdBadge();
+      markTableRows();
+    }
+    navTo('sec-drilldown');
+  });
+  markTableRows();
+}
+function downloadCSV(){
+  const head = 'state,fips,unemp_rate,delta_pp_mom,labor_force,employed,unemployed,lfpr,epop,unweighted_unemp_n';
+  const lines = stRows.map(r=>[r.name,r.fips,r.ur.toFixed(2),isFinite(r.d)?r.d.toFixed(2):'',
+    Math.round(r.lf),Math.round(r.emp),Math.round(r.unemp),r.lfpr.toFixed(2),r.epop.toFixed(2),r.nU].join(','));
+  const blob=new Blob([head+'\n'+lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`cps_state_table_${labelOf(current).replace(' ','_').toLowerCase()}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+$('csvBtn').onclick = downloadCSV;
+$('themeBtn').onclick = () => applyTheme(isDark() ? 'light' : 'dark');
+
+/* ---------- main analysis ---------- */
+async function run(p){
+  current = p;
+  const prior = prevMonth(p);
+  $('app').classList.add('hidden'); $('errbox').classList.add('hidden');
+  try{
+    const [cur, prv] = await Promise.all([fetchMonth(p,'reference month'), fetchMonth(prior,'comparison month')]);
+    setStatus('Tabulating\u2026');
+    await new Promise(r=>setTimeout(r,20));
+
+    const curLbl=labelOf(p), prvLbl=labelOf(prior);
+    const N=rates(cur), P=rates(prv);
+    nationalStats = N;  // store for map re-renders
+
+    /* headline */
+    $('headline').innerHTML = `
+      <div class="hl-grid">
+        <div class="hl-lead">
+          <div class="hl-kicker">Unemployment rate \u00b7 NSA \u00b7 ${curLbl}</div>
+          <div class="hl-big">${fmtPct(N.ur)}</div>
+          <div class="hl-d">${deltaSpan(N.ur-P.ur,'pp')}</div>
+          <div class="hl-p">Prior month (${prvLbl}): ${fmtPct(P.ur)}</div>
+        </div>
+        <div class="hl-stats">
+          <div class="hl-s">
+            <div class="hl-sl">Employed</div>
+            <div class="hl-sv c-cool">${fmtM(N.emp)}</div>
+            <div class="hl-sd">${deltaSpan(N.emp-P.emp,'lvl',true)}</div>
+          </div>
+          <div class="hl-s">
+            <div class="hl-sl">Unemployed</div>
+            <div class="hl-sv c-hot">${fmtM(N.unemp)}</div>
+            <div class="hl-sd">${deltaSpan(N.unemp-P.unemp,'lvl')}</div>
+          </div>
+          <div class="hl-s">
+            <div class="hl-sl">Labor force participation</div>
+            <div class="hl-sv">${fmtPct(N.lfpr)}</div>
+            <div class="hl-sd">${deltaSpan(N.lfpr-P.lfpr,'pp',true)}</div>
+          </div>
+          <div class="hl-s">
+            <div class="hl-sl">Employment\u2013population ratio</div>
+            <div class="hl-sv">${fmtPct(N.epop)}</div>
+            <div class="hl-sd">${deltaSpan(N.epop-P.epop,'pp',true)}</div>
+          </div>
+        </div>
+      </div>`;
+
+    /* demographics */
+    $('demoTag').textContent = `${curLbl} vs ${prvLbl}`;
+    barChart('demoChart',
+      GROUPS.map(g=>g[0]), GROUPS.map(g=>rates(cur,g[1]).ur), GROUPS.map(g=>rates(prv,g[1]).ur),
+      curLbl, prvLbl, false);
+    barChart('eduAgeChart',
+      EDU_AGE.map(g=>g[0]), EDU_AGE.map(g=>rates(cur,g[1]).ur), EDU_AGE.map(g=>rates(prv,g[1]).ur),
+      curLbl, prvLbl, true);
+
+    /* duration */
+    function durStats(recs){
+      const u   = recs.filter(r=>isUnemp(r)&&r.dur>=0);
+      const tot = u.reduce((s,r)=>s+r.w,0);
+      const shares = DUR_BINS.map(([,f])=>100*u.filter(r=>f(r.dur)).reduce((s,r)=>s+r.w,0)/tot);
+      return { shares, med:wMedian(u.map(r=>[r.dur,r.w])), lt:shares[3] };
+    }
+    const dC=durStats(cur), dP=durStats(prv);
+    durChart(DUR_BINS.map(b=>b[0]), dC.shares, dP.shares, curLbl, prvLbl);
+    $('durNote').textContent =
+      `Median duration ${curLbl}: ${dC.med.toFixed(0)}\u00a0wks (${prvLbl}: ${dP.med.toFixed(0)}). ` +
+      `Long-term (27+\u00a0wks) share: ${dC.lt.toFixed(1)}% vs ${dP.lt.toFixed(1)}%.`;
+
+    /* composition */
+    function comp(recs, R){
+      let disc=0,mj=0,ft=0,lfW=0;
+      const prime=rates(recs,r=>r.age>=25&&r.age<=54);
+      for(const r of recs){
+        if(r.disc===1) disc+=r.w;
+        if(isEmp(r)&&r.mjot===1) mj+=r.w;
+        if(r.ftlf===1) ft+=r.w;
+        if(isEmp(r)||isUnemp(r)) lfW+=r.w;
+      }
+      return { disc, mjShare:100*mj/R.emp, ftShare:100*ft/lfW, primeEpop:prime.epop };
+    }
+    const cC=comp(cur,N), cP=comp(prv,P);
+    $('compStrip').innerHTML = `
+      <div class="cc">
+        <div class="cc-l">Prime-age EPOP (25\u201354)</div>
+        <div class="cc-v">${fmtPct(cC.primeEpop)}</div>
+        <div class="cc-d">${deltaSpan(cC.primeEpop-cP.primeEpop,'pp',true)}</div>
+      </div>
+      <div class="cc">
+        <div class="cc-l">Discouraged workers</div>
+        <div class="cc-v">${(cC.disc/1e3).toFixed(0)}K</div>
+        <div class="cc-d">${deltaSpan(cC.disc-cP.disc,'lvl')}</div>
+      </div>
+      <div class="cc">
+        <div class="cc-l">Multiple jobholders</div>
+        <div class="cc-v">${fmtPct(cC.mjShare)}</div>
+        <div class="cc-s">share of employed</div>
+      </div>
+      <div class="cc">
+        <div class="cc-l">Full-time labor force</div>
+        <div class="cc-v">${fmtPct(cC.ftShare)}</div>
+        <div class="cc-s">share of labor force</div>
+      </div>`;
+
+    /* state table */
+    const byStC=new Map(), byStP=new Map();
+    for(const r of cur){ if(!byStC.has(r.st)) byStC.set(r.st,[]); byStC.get(r.st).push(r); }
+    for(const r of prv){ if(!byStP.has(r.st)) byStP.set(r.st,[]); byStP.get(r.st).push(r); }
+    stRows=[...byStC.keys()].filter(f=>FIPS[f]).map(f=>{
+      const R=rates(byStC.get(f)), Rp=byStP.has(f)?rates(byStP.get(f)):null;
+      return { fips:f, name:FIPS[f], ur:R.ur, lf:R.lf, emp:R.emp, unemp:R.unemp,
+               lfpr:R.lfpr, epop:R.epop, nU:R.nU, d:Rp?R.ur-Rp.ur:NaN };
+    });
+    sortCol='ur'; sortDir=-1; renderTable();
+
+    /* tile map */
+    renderTileMap(stRows, nationalStats, mapMetric);
+
+    /* chrome */
+    const nCur=cur.length;
+    $('refline').innerHTML=`<strong>${curLbl}</strong> vs ${prvLbl}<br>${nCur.toLocaleString()} adult civilian records`;
+    $('foot').innerHTML=`SOURCE: U.S. Census Bureau, Current Population Survey Basic Monthly microdata API (${curLbl} and ${prvLbl} releases). Universe: civilian noninstitutional population 16+, weighted by PWCMPWGT (composited final weight). All figures are <b>not seasonally adjusted</b> and tabulated directly from public-use microdata, so they will differ modestly from BLS-published estimates (which apply seasonal adjustment and, for states, LAUS modeling). Month-over-month deltas compound sampling noise from two independent monthly samples \u2014 interpret small movements cautiously, especially at the state level. Race groups shown are single-race, non-Hispanic; Hispanic may be any race.`;
+    const cacheNote=repoMonths?` \u00b7 Repo cache: ${repoMonths.toLocaleString()} state-months through ${repoEnd||'?'}`:'';
+    setStatus(`Done. ${curLbl}: ${nCur.toLocaleString()} records \u00b7 ${prvLbl}: ${prv.length.toLocaleString()} records.`+cacheNote,'done');
+    const badge=$('cacheBadge'); badge.classList.remove('hidden');
+    if(repoMonths){ badge.className='sbadge sbadge-cache'; badge.textContent=`\u26a1 repo cache \u00b7 ${repoMonths.toLocaleString()} state-months`; }
+    else { badge.className='sbadge sbadge-live'; badge.textContent='live api'; }
+    $('app').classList.remove('hidden');
+  }catch(e){ fail('Analysis failed: '+e.message); }
+}
+
+/* ---------- month selector ---------- */
+function buildSelector(){
+  const sel=$('monthSel'); sel.innerHTML='';
+  let p={...latest};
+  for(let i=0;i<14;i++){
+    const o=document.createElement('option');
+    o.value=keyOf(p); o.textContent=labelOf(p)+(i===0?' (latest)':'');
+    sel.appendChild(o); p=prevMonth(p);
+  }
+  sel.disabled=false;
+  sel.onchange=()=>{ const [y,m]=sel.value.split('-').map(Number); run({y,m}); };
+}
+
+/* ---------- repo cache preload ---------- */
+let repoMonths=0, repoEnd=null;
+async function preloadRepoCache(){
+  if(!DATA_URL||DATA_URL.includes('YOURUSER')) return;
+  try{
+    setStatus('Loading precomputed state series from repo\u2026');
+    const r=await fetch(DATA_URL,{cache:'no-cache'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const doc=await r.json();
+    for(const [fips,months] of Object.entries(doc.series)){
+      for(const [ym,v] of Object.entries(months)){
+        const [y,m1]=ym.split('-').map(Number);
+        tsCache.set(`${fips}|${y}-${m1-1}`,{ ur:v[0],lfpr:v[1],epop:v[2],lf:v[3],nU:v[4] });
+        repoMonths++;
+      }
+    }
+    repoEnd=doc.meta&&doc.meta.end;
+  }catch(e){ console.warn('repo cache unavailable:',e.message); }
+}
+
+/* ---------- state drilldown time series ---------- */
+const tsCache  = new Map();
+let ddSeries   = null;
+let ddStates   = [];         // all selected states — no primary/comparison distinction
+const METRIC_LBL = { ur:'Unemployment rate', lfpr:'Labor force participation', epop:'Employment\u2013population ratio' };
+const CMP_COLORS = ['#C4311C','#1A5AA8','#1B6B3C','#7B3FA0','#A07000','#B0335A','#2E4A5A','#6E4B1A'];
+
+function updateDdBadge(){
+  $('ddStateBadge').textContent = ddStates.length===0 ? '' :
+    ddStates.length===1 ? FIPS[ddStates[0]] : `${ddStates.length} states`;
+}
+
+function renderChips(){
+  $('ddChips').innerHTML = ddStates.map(f=>
+    `<span class="chip" data-fips="${f}" title="remove">${FIPS[f]}</span>`).join('');
+  $('ddChips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+    ddStates=ddStates.filter(f=>f!==c.dataset.fips);
+    renderChips(); updateDdBadge(); markTableRows();
+    if(ddStates.length===0){
+      if(charts.ddChart){ charts.ddChart.destroy(); delete charts.ddChart; }
+      $('ddNote').textContent='Add states above to begin.';
+      $('ddCsv').disabled=true;
+    } else {
+      loadDrilldown().catch(()=>{});
+    }
+  });
+}
+
+function buildDdState(){
+  const opts=Object.entries(FIPS).sort((a,b)=>a[1].localeCompare(b[1]));
+  $('ddAdd').innerHTML='<option value="">+ add state\u2026</option>'+
+    opts.map(([f,n])=>`<option value="${f}">${n}</option>`).join('');
+  $('ddAdd').onchange=()=>{
+    const f=$('ddAdd').value; $('ddAdd').value='';
+    if(!f||ddStates.includes(f)||ddStates.length>=8) return;
+    ddStates.push(f); renderChips(); updateDdBadge(); markTableRows();
+    loadDrilldown().catch(e=>{ $('ddProg').textContent='failed: '+e.message; $('ddLoad').disabled=false; });
+  };
+}
+
+async function fetchStateMonth(fips, p){
+  const k=`${fips}|${keyOf(p)}`;
+  if(tsCache.has(k)) return tsCache.get(k);
+  const url=`https://api.census.gov/data/${p.y}/cps/basic/${MONTHS[p.m]}?get=PEMLR,PRTAGE,PWCMPWGT&for=state:${fips}&key=${KEY}`;
+  let out=null;
+  for(let attempt=0;attempt<3;attempt++){
+    try{
+      const r=await fetch(url);
+      if(r.status===404){ out=null; break; }
+      if(!r.ok){ await new Promise(s=>setTimeout(s,600*(attempt+1))); continue; }
+      const raw=await r.json();
+      const h=raw[0],ix={}; h.forEach((c,i)=>ix[c]=i);
+      let emp=0,unemp=0,pop=0,nU=0;
+      for(let i=1;i<raw.length;i++){
+        const row=raw[i]; const w=parseFloat(row[ix.PWCMPWGT]);
+        if(!(w>0)||parseInt(row[ix.PRTAGE],10)<16) continue;
+        const mlr=+row[ix.PEMLR]; pop+=w;
+        if(mlr===1||mlr===2) emp+=w;
+        else if(mlr===3||mlr===4){ unemp+=w; nU++; }
+      }
+      const lf=emp+unemp;
+      out={ ur:100*unemp/lf, lfpr:100*lf/pop, epop:100*emp/pop, lf, nU }; break;
+    }catch(e){ await new Promise(s=>setTimeout(s,600*(attempt+1))); }
+  }
+  tsCache.set(k,out); return out;
+}
+
+function movAvg3(vals){
+  return vals.map((v,i)=>{
+    const win=[vals[i-2],vals[i-1],v].filter(x=>x!=null&&isFinite(x));
+    return win.length===3?win.reduce((s,x)=>s+x,0)/3:null;
+  });
+}
+
+async function loadDrilldown(){
+  if(ddStates.length===0) return;
+  const states=[...ddStates];
+  const spanV=$('ddSpan').value;
+  const ref=current||latest;
+  const span=spanV==='all'?(ref.y-1994)*12+ref.m+1:+spanV;
+  const metric=$('ddMetric').value;
+  const btn=$('ddLoad'); btn.disabled=true; $('ddCsv').disabled=true;
+
+  updateDdBadge();
+  const months=[]; let p={...ref};
+  for(let i=0;i<span;i++){ months.unshift({...p}); p=prevMonth(p); }
+
+  const tasks=[];
+  states.forEach((f,si)=>months.forEach((m,mi)=>tasks.push({f,si,m,mi})));
+  const results=states.map(()=>new Array(months.length));
+  let done=0, idx=0;
+  const CONC=6;
+  async function worker(){
+    while(idx<tasks.length){
+      const t=tasks[idx++];
+      results[t.si][t.mi]=await fetchStateMonth(t.f,t.m);
+      done++;
+      if(done%5===0||done===tasks.length)
+        $('ddProg').textContent=`loading ${done}/${tasks.length}\u2026`;
+    }
+  }
+  await Promise.all(Array.from({length:Math.min(CONC,tasks.length)},worker));
+  $('ddProg').textContent='';
+
+  const labels=months.map(m=>`${MONTH_NAMES[m.m].slice(0,3)} ${String(m.y).slice(2)}`);
+  const rawByState=results.map(res=>res.map(r=>r?+r[metric].toFixed(2):null));
+  const avgByState=rawByState.map(movAvg3);
+  const multi=states.length>1;
+
+  let datasets;
+  if(!multi){
+    datasets=[
+      { label:`${FIPS[states[0]]} \u00b7 monthly (NSA)`, data:rawByState[0],
+        borderColor:pal().dim, backgroundColor:pal().dim,
+        borderWidth:1.5, pointRadius:1.5, spanGaps:true, tension:0 },
+      { label:'3-month average', data:avgByState[0],
+        borderColor:'#C4311C', backgroundColor:'#C4311C',
+        borderWidth:2.5, pointRadius:0, spanGaps:true, tension:.25 },
+    ];
+  } else {
+    datasets=states.map((f,si)=>({
+      label:FIPS[f], data:avgByState[si],
+      borderColor:CMP_COLORS[si%CMP_COLORS.length], backgroundColor:CMP_COLORS[si%CMP_COLORS.length],
+      borderWidth:2.2, pointRadius:0, spanGaps:true, tension:.25 }));
+  }
+
+  if(charts.ddChart) charts.ddChart.destroy();
+  charts.ddChart=new Chart($('ddChart'),{
+    type:'line', data:{ labels, datasets },
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{ position:'bottom', labels:{ boxWidth:9,boxHeight:9,padding:14 } },
+        title:{ display:true,
+          text:multi?`${METRIC_LBL[metric]} \u2014 3-month averages`:`${FIPS[states[0]]} \u2014 ${METRIC_LBL[metric]}`,
+          color:pal().ink, font:{family:"'Barlow Condensed',sans-serif",size:14,weight:'700'} },
+        tooltip:{ callbacks:{ label:c=>` ${c.dataset.label}: ${c.parsed.y==null?'\u2014':c.parsed.y.toFixed(1)+'%'}` } }
+      },
+      scales:{
+        y:{ ticks:{callback:v=>v+'%',font:{size:10}}, grid:{color:pal().grid} },
+        x:{ grid:{display:false}, ticks:{maxTicksLimit:span>36?14:12,maxRotation:0,font:{size:10}} }
+      }
+    }
+  });
+
+  if(multi){
+    const parts=states.map((f,si)=>{
+      const raw=rawByState[si],have=raw.filter(v=>v!=null);
+      if(!have.length) return `${FIPS[f]}: no data`;
+      const last=raw[raw.length-1];
+      return `${FIPS[f]} latest ${last==null?'\u2014':last.toFixed(1)+'%'} (span ${Math.min(...have).toFixed(1)}\u2013${Math.max(...have).toFixed(1)}%)`;
+    });
+    $('ddNote').textContent=`${METRIC_LBL[metric]}, ${labels[0]}\u2013${labels[labels.length-1]}: `+
+      parts.join(' \u00b7 ')+'. Lines are 3-month averages (NSA); raw monthly values in the CSV. Not comparable to LAUS.';
+  } else {
+    const raw=rawByState[0],have=raw.filter(v=>v!=null);
+    if(have.length){
+      const last=raw[raw.length-1],min=Math.min(...have),max=Math.max(...have);
+      const minI=raw.indexOf(min),maxI=raw.indexOf(max);
+      const res0=results[0].filter(Boolean);
+      const avgN=res0.reduce((s,r)=>s+r.nU,0)/res0.length;
+      $('ddNote').textContent=
+        `${FIPS[states[0]]}, ${METRIC_LBL[metric]}: latest ${last==null?'\u2014':last.toFixed(1)+'%'} \u00b7 `+
+        `span low ${min.toFixed(1)}% (${labels[minI]}) \u00b7 span high ${max.toFixed(1)}% (${labels[maxI]}). `+
+        `Avg unweighted unemployed per month: ${avgN.toFixed(0)}`+
+        `${avgN<30?' \u2014 small sample, treat monthly moves as noise':''}. `+
+        `NSA microdata tabulation; not comparable to seasonally adjusted LAUS.`;
+    } else { $('ddNote').textContent='No data returned for this span.'; }
+  }
+
+  ddSeries={ states, metric, rows:months.map((m,i)=>{
+    const row={ month:`${m.y}-${String(m.m+1).padStart(2,'0')}` };
+    states.forEach((f,si)=>{
+      row[f]        = rawByState[si][i];
+      row[f+'_avg3']= avgByState[si][i]==null?null:+avgByState[si][i].toFixed(2);
+      row[f+'_nU']  = results[si][i]?results[si][i].nU:null;
+    });
+    return row;
+  })};
+  $('ddCsv').disabled=false;
+  btn.disabled=false;
+}
+
+$('ddLoad').onclick=()=>loadDrilldown().catch(e=>{ $('ddProg').textContent='failed: '+e.message; $('ddLoad').disabled=false; });
+$('ddCsv').onclick=()=>{
+  if(!ddSeries) return;
+  const cols=[];
+  ddSeries.states.forEach(f=>{
+    const ab=FIPS[f].toLowerCase().replace(/ /g,'_');
+    cols.push([f,ab+'_'+ddSeries.metric],[f+'_avg3',ab+'_avg3'],[f+'_nU',ab+'_unwtd_unemp_n']);
+  });
+  const head='month,'+cols.map(c=>c[1]).join(',');
+  const lines=ddSeries.rows.map(r=>[r.month,...cols.map(c=>r[c[0]]??'')].join(','));
+  const blob=new Blob([head+'\n'+lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const tag=ddSeries.states.length>1?`${ddSeries.states.length}states`:FIPS[ddSeries.states[0]].toLowerCase().replace(/ /g,'_');
+  a.download=`cps_${tag}_${ddSeries.metric}_series.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+};
+
+/* ---------- boot ---------- */
+(async()=>{
+  latest=await detectLatest();
+  if(!latest) return;
+  buildSelector();
+  buildDdState();
+  await preloadRepoCache();
+  await run(latest);
+})();
+</script>
+</body>
+</html>
